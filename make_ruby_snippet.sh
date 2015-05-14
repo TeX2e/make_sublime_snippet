@@ -1,7 +1,13 @@
 #! /bin/bash
 # 
-# Usage: mksnip <snippet-file>
+# Usage: command <snippet-file>
 # 
+
+function usage() {
+	echo "Usage: command <snippet-file>"
+}
+
+[[ $# = 0 ]] && usage && exit 0
 
 # use this 'eval echo -e $SNIPPET'
 # vars :
