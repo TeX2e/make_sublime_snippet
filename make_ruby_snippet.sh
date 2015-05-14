@@ -30,9 +30,9 @@ function normal_block() {
 	local STR=$*
 	STR=$(
 		echo $STR | 
-		sed -e 's/ {/ do/' |                    # { -> do
-		sed -e 's/\([a-z_][a-z_]*\) }/.. }/' |  # block -> ..
-		sed -e 's/ }/ end/'                     # } -> end
+		sed -e 's/ {/ do/' |    # { -> do
+		sed -e 's/block/../' |  # block -> ..
+		sed -e 's/ }/ end/'     # } -> end
 	)
 	echo "$STR"
 }
@@ -62,15 +62,19 @@ function snippet_block() {
 		sed -e 's/ {/ do/' |      # { -> do
 		sed -e 's/| /|\\n\\t/' |  # | -> |\n\t
 		sed -e 's/ }/\\nend/' |   # } -> \n end
-		sed -e 's/\t\${[0-9]:\([a-z_][a-z_]*\)}/\t${0:\1}/'  # do ${2:block} -> do ${0:block}
+		sed -e 's/\t\${[1-9]:block}/\t${0:block}/'  # do ${2:block} -> do ${0:block}
 	)
 	echo "$STR"
 }
 
 for ruby_snip_file in $@; do
-	# remove extention form filename
+	if [[ ! -f $ruby_snip_file ]]; then
+		echo "$ruby_snip_file: No such file or directory"
+		continue
+	fi
+
 	SNIPPET_FILE=$ruby_snip_file
-	SNIPPET_DIR=${ruby_snip_file%\.snippet}
+	SNIPPET_DIR=${ruby_snip_file%\.snip} # remove extention from filename
 
 	echo $SNIPPET_DIR
 
