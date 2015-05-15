@@ -46,7 +46,7 @@ function snippet_var() {
 		sed -e 's/block/${:block}/g'                         # block -> ${:block}
 	)
 
-	VAR_NUM=5  # only five variables changed
+	VAR_NUM=5  # change only five variables
 	for (( i = 1; i < VAR_NUM; i++ )); do
 		STR=$(echo $STR | sed -e "s/\${:/$\{$i:/")  # ${:var} -> ${1:var}
 	done
