@@ -30,10 +30,10 @@ function normal_block() {
 	local STR=$*
 	STR=$(
 		echo $STR | 
-		sed -e 's/ {/ do/' |    # { -> do
+		sed -e 's/ {/ do/' |        # { -> do
 		sed -e 's/block }/.. }/' |  # block -> ..
 		sed -e 's/bool }/.. }/' |   # bool -> ..
-		sed -e 's/ }/ end/'     # } -> end
+		sed -e 's/ }/ end/'         # } -> end
 	)
 	echo "$STR"
 }
@@ -43,9 +43,9 @@ function snippet_var() {
 	local STR=$*
 	STR=$(
 		echo $STR | 
-		sed -e 's/\([a-z_][a-z_]*\)\([,)\|]\)/${:\1}\2/g' |  # var -> ${:var}
-		sed -e 's/block }/${:block} }/g' |                       # block -> ${:block}
-		sed -e 's/bool }/${:bool} }/g'                           # bool -> ${:bool}
+		sed -e 's/\([a-zA-Z_][a-z_=0-9]*\)\([,)\|]\)/${:\1}\2/g' |  # var -> ${:var}
+		sed -e 's/block }/${:block} }/g' |  # block -> ${:block}
+		sed -e 's/bool }/${:bool} }/g'      # bool -> ${:bool}
 	)
 
 	VAR_NUM=5  # change only five variables
@@ -61,6 +61,7 @@ function snippet_block() {
 	local STR=$*
 	STR=$(
 		echo $STR | 
+		sed -e 's/ { \$/ do\\n\\t$/' |  # { ${2:block} -> do\\n\\t${2:block}
 		sed -e 's/ {/ do/' |      # { -> do
 		sed -e 's/| /|\\n\\t/' |  # | -> |\n\t
 		sed -e 's/ }/\\nend/' |   # } -> \n end
@@ -97,7 +98,10 @@ for ruby_snip_file in $@; do
 
 	cat ${SNIPPET_FILE} | while read line; do
 		# MODE flag
-		if [[ $line =~ '--class-method--' ]]; then
+		if [[ $line =~ '--constant--' ]]; then
+			MODE='constant'
+			continue
+		elif [[ $line =~ '--class-method--' ]]; then
 			MODE='class-method'
 			continue
 		elif [[ $line =~ '--instance-method--' ]]; then
@@ -108,49 +112,75 @@ for ruby_snip_file in $@; do
 			continue
 		elif [[ $line =~ ^$ || $line =~ ^# ]]; then
 			continue
-		elif [[ $line =~ 'EOF' ]]; then
+		elif [[ $line =~ '--EOF--' ]]; then
 			exit 0
 		fi
 		
+		# constant
+		if [[ $MODE = 'constant' ]]; then
+			if [[ $line =~ '!' ]]; then
+				NORMAL_STR=${line:1}
+			else
+				NORMAL_STR="$SNIPPET_DIR::$line"
+			fi
+			SNIPPET_STR=$NORMAL_STR
+
+			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
+			continue
+		fi
+
 		# class methods
 		if [[ $MODE = 'class-method' ]]; then
 			NORMAL_STR=$SNIPPET_DIR.$line
 			SNIPPET_STR=$(snippet_var $SNIPPET_DIR.$line)
-			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
+			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
 
 			# if snippet is '{ block }' , make snippet 'do .. end'
 			if [[ $NORMAL_STR =~ }$ ]]; then
 				NORMAL_STR=$(normal_block $NORMAL_STR)
 				SNIPPET_STR=$(snippet_block $SNIPPET_STR)
-				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
+				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
 			fi
+			continue
 		fi
 
 		# instance methods
 		if [[ $MODE = 'instance-method' ]]; then
 			NORMAL_STR=$line
 			SNIPPET_STR=$(snippet_var $line)
-			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
+			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
 			
 			# if snippet is '{ block }' , make snippet 'do .. end'
 			if [[ $NORMAL_STR =~ }$ ]]; then
 				NORMAL_STR=$(normal_block $NORMAL_STR)
 				SNIPPET_STR=$(snippet_block $SNIPPET_STR)
-				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
+				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
 			fi
+			continue
 		fi
 
 		# private instance method
 		if [[ $MODE = 'private-instance-method' ]]; then
-			NORMAL_STR="Def $line"
-			SNIPPET_STR=$(snippet_var "def $line")
-			SNIPPET_STR=$(snippet_def $SNIPPET_STR)
-			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
+			if [[ $line =~ '!' ]]; then
+				NORMAL_STR=${line:1}
+				SNIPPET_STR=$(snippet_var $NORMAL_STR | tr '(' ' ' | tr -d ')' )
+				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
+				continue
+			else
+				NORMAL_STR="Def $line"
+				SNIPPET_STR=$(snippet_var "def $line")
+				SNIPPET_STR=$(snippet_def $SNIPPET_STR)
+				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet" &
+				continue
+			fi
 		fi
 	done
 
+	wait
+	
 	# About all snippet-file under this $SNIPPET_DIR directory
 	for file in $SNIPPET_DIR/*.sublime-snippet; do
+		[[ -z $file ]] && break
 		# if the timestamp of this snippet-file is older then $SNIPPET_DIR/.update file,
 		# remove this snippet-file.
 		if [[ $file -ot $SNIPPET_DIR/.update ]]; then
