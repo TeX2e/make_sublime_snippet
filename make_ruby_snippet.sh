@@ -31,7 +31,8 @@ function normal_block() {
 	STR=$(
 		echo $STR | 
 		sed -e 's/ {/ do/' |    # { -> do
-		sed -e 's/block/../' |  # block -> ..
+		sed -e 's/block }/.. }/' |  # block -> ..
+		sed -e 's/bool }/.. }/' |   # bool -> ..
 		sed -e 's/ }/ end/'     # } -> end
 	)
 	echo "$STR"
@@ -43,7 +44,8 @@ function snippet_var() {
 	STR=$(
 		echo $STR | 
 		sed -e 's/\([a-z_][a-z_]*\)\([,)\|]\)/${:\1}\2/g' |  # var -> ${:var}
-		sed -e 's/block/${:block}/g'                         # block -> ${:block}
+		sed -e 's/block }/${:block} }/g' |                       # block -> ${:block}
+		sed -e 's/bool }/${:bool} }/g'                           # bool -> ${:bool}
 	)
 
 	VAR_NUM=5  # change only five variables
@@ -62,7 +64,18 @@ function snippet_block() {
 		sed -e 's/ {/ do/' |      # { -> do
 		sed -e 's/| /|\\n\\t/' |  # | -> |\n\t
 		sed -e 's/ }/\\nend/' |   # } -> \n end
-		sed -e 's/\t\${[1-9]:block}/\t${0:block}/'  # do ${2:block} -> do ${0:block}
+		sed -e 's/\t\${[1-9]:block}/\t${0:block}/' | # do ${2:block} -> do ${0:block}
+		sed -e 's/\t\${[1-9]:bool}/\t${0:bool}/'     # do ${2:bool} -> do ${0:bool}
+	)
+	echo "$STR"
+}
+
+# convert 'def func' to 'def func\n\t$0\n'
+function snippet_def() {
+	local STR=$*
+	STR=$(
+		echo $STR | 
+		sed -e 's/$/\\n\\t$0\\nend/'
 	)
 	echo "$STR"
 }
@@ -84,13 +97,16 @@ for ruby_snip_file in $@; do
 
 	cat ${SNIPPET_FILE} | while read line; do
 		# MODE flag
-		if [[ $line =~ 'class-method' ]]; then
+		if [[ $line =~ '--class-method--' ]]; then
 			MODE='class-method'
 			continue
-		elif [[ $line =~ 'instance-method' ]]; then
+		elif [[ $line =~ '--instance-method--' ]]; then
 			MODE='instance-method'
 			continue
-		elif [[ $line =~ ^$ ]]; then
+		elif [[ $line =~ '--private-instance-method--' ]]; then
+			MODE='private-instance-method'
+			continue
+		elif [[ $line =~ ^$ || $line =~ ^# ]]; then
 			continue
 		elif [[ $line =~ 'EOF' ]]; then
 			exit 0
@@ -122,6 +138,14 @@ for ruby_snip_file in $@; do
 				SNIPPET_STR=$(snippet_block $SNIPPET_STR)
 				eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
 			fi
+		fi
+
+		# private instance method
+		if [[ $MODE = 'private-instance-method' ]]; then
+			NORMAL_STR="Def $line"
+			SNIPPET_STR=$(snippet_var "def $line")
+			SNIPPET_STR=$(snippet_def $SNIPPET_STR)
+			eval echo -e $SNIPPET > "$SNIPPET_DIR/$NORMAL_STR.sublime-snippet"
 		fi
 	done
 
