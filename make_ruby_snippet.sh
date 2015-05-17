@@ -82,8 +82,8 @@ function snippet_def() {
 }
 
 for ruby_snip_file in $@; do
-	if [[ ! -f $ruby_snip_file ]]; then
-		echo "$ruby_snip_file: No such file or directory"
+	# skip if file suffix is not '.snip'
+	if [[ ! $ruby_snip_file =~ \.snip$ ]]; then
 		continue
 	fi
 
@@ -92,11 +92,10 @@ for ruby_snip_file in $@; do
 
 	# if snippet-file is not newer then snippet-dir, skip reading snippet-file.
 	if [[ ! $SNIPPET_FILE -nt $SNIPPET_DIR ]]; then
-		echo $SNIPPET_DIR
 		continue
-	else
-		echo "$SNIPPET_DIR <"
 	fi
+
+	echo $SNIPPET_DIR
 
 	# make dir and modification timestamp
 	mkdir $SNIPPET_DIR 2> /dev/null
@@ -209,20 +208,25 @@ for ruby_snip_file in $@; do
 	
 	# About all snippet-file under this $SNIPPET_DIR directory
 	for file in $SNIPPET_DIR/*.sublime-snippet; do
-		[[ -z $file ]] && break
+		[[ ! -e $file ]] && break
 		# if the timestamp of this snippet-file is older then $SNIPPET_DIR/.update file,
 		# remove this snippet-file.
 		if [[ $file -ot $SNIPPET_DIR/.update ]]; then
-			echo "remove $file"
+			echo -e "  \033[31mremove\033[0m $file"
 			rm "$file"
 		fi
 	done
 
 	# remove tmp file
 	rm $SNIPPET_DIR/.update
+
+	SNIPPET_NUM=$(ls -l "$SNIPPET_DIR" | wc -l | tr -d ' ')
+	echo -e "  \033[32mcreate\033[0m $SNIPPET_NUM snippet"
 done
 
+echo "[finished]"
 
+exit 0
 
 
 
