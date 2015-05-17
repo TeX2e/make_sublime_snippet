@@ -90,7 +90,13 @@ for ruby_snip_file in $@; do
 	SNIPPET_FILE=$ruby_snip_file
 	SNIPPET_DIR=${ruby_snip_file%\.snip} # remove extention from filename
 
-	echo $SNIPPET_DIR
+	# if snippet-file is not newer then snippet-dir, skip reading snippet-file.
+	if [[ ! $SNIPPET_FILE -nt $SNIPPET_DIR ]]; then
+		echo $SNIPPET_DIR
+		continue
+	else
+		echo "$SNIPPET_DIR <"
+	fi
 
 	# make dir and modification timestamp
 	mkdir $SNIPPET_DIR 2> /dev/null
@@ -117,6 +123,10 @@ for ruby_snip_file in $@; do
 		fi
 		
 		# constant
+		# 
+		# NAN -> Float::NAN
+		# !ARGV -> ARGV
+		# 
 		if [[ $MODE = 'constant' ]]; then
 			if [[ $line =~ '!' ]]; then
 				NORMAL_STR=${line:1}
@@ -129,7 +139,10 @@ for ruby_snip_file in $@; do
 			continue
 		fi
 
-		# class methods
+		# public class methods
+		# 
+		# new(size) -> Array.new(size)
+		# 
 		if [[ $MODE = 'class-method' ]]; then
 			NORMAL_STR=$SNIPPET_DIR.$line
 			SNIPPET_STR=$(snippet_var $SNIPPET_DIR.$line)
@@ -144,7 +157,14 @@ for ruby_snip_file in $@; do
 			continue
 		fi
 
-		# instance methods
+		# public instance methods
+		# 
+		# reject { |e| bool }
+		# -> reject { |e| bool }
+		# -> reject do |e|
+		#      bool
+		#    end
+		# 
 		if [[ $MODE = 'instance-method' ]]; then
 			NORMAL_STR=$line
 			SNIPPET_STR=$(snippet_var $line)
@@ -160,6 +180,15 @@ for ruby_snip_file in $@; do
 		fi
 
 		# private instance method
+		# 
+		# self.included(mod)
+		# -> def self.included(mod)
+		#      $0
+		#    end
+		# 
+		# !alias_method(:new, :old)
+		# -> alias_method :new, :old
+		# 
 		if [[ $MODE = 'private-instance-method' ]]; then
 			if [[ $line =~ '!' ]]; then
 				NORMAL_STR=${line:1}
