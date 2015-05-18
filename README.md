@@ -2,7 +2,15 @@
 
 - make\_ruby_snippet.sh
 
-Sample.snip
+## Usage
+
+enter the following command:
+
+	./make_ruby_snippet.sh *.snip
+
+## .snip file sample
+
+ClassName.snip
 
 	# 
 	### comment using sharp(#)
