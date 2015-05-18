@@ -1,4 +1,4 @@
-# make_sublime_snippet
+# make_sublime_ruby_snippet
 
 - make\_ruby_snippet.sh
 
@@ -8,7 +8,7 @@ enter the following command:
 
 	./make_ruby_snippet.sh *.snip
 
-## .snip file sample
+## sample .snip file
 
 ClassName.snip
 
